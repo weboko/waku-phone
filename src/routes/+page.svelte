@@ -1,9 +1,16 @@
 <script lang="ts">
-  import { Waku } from "$lib";
+  import { Waku, WakuRTC } from "$lib";
 
     async function handleClick() {
-      const w = await Waku.create();
-      console.log(w);
+      const node = await Waku.get();
+      // @ts-ignore
+      window.waku = node;
+
+      const wakuRtc = new WakuRTC({ node });
+      await wakuRtc.start();
+
+      // @ts-ignore
+      window.init = wakuRtc.initiateConnection.bind(wakuRtc);
     }
 </script>
 
