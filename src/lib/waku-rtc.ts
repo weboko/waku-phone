@@ -33,10 +33,11 @@ export class WakuRTC {
     this.encoder = createEncoder({
       contentTopic: DEFAULT_CONTENT_TOPIC,
       pubsubTopicShardInfo: {
-        clusterId: 42
+        clusterId: 42,
+        shard: 0,
       }
     });
-    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC, { clusterId: 42 });
+    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC, { clusterId: 42, shard: 0 });
 
     this.rtcConnection = new RTCPeerConnection({
       iceServers: [{ urls: DEFAULT_STUN }],

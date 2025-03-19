@@ -16,7 +16,7 @@ export class Waku {
         defaultBootstrap: false,
         networkConfig: {
           clusterId: 42,
-          shards: [0, 1, 3, 4, 5, 6, 7, 8]
+          shards: [0]
         },
         libp2p: {
           privateKey: identity,
