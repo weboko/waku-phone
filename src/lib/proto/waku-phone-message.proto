@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package waku.phone.v1;
+
+message WakuPhoneMessage {
+  enum MessageType {
+    DIAL = 0; // Calling party to called party
+    RINGING = 1; // Called party to calling party
+    ANSWER = 2; // Called party to calling party
+    REJECT = 3; // Called party to calling party
+    CANDIDATE = 4; // Either party to the other; to support Trickle ICE (RFC 8838)
+    BYE =5; // Either party to the other
+    // May want to add an ACK to respond to DIAL and other events on receive
+  }
+
+  MessageType message_type = 1;
+  bytes call_id = 2; // Unique identifier for this call
+
+  optional bytes caller_peer_id = 10;
+  optional string caller_display_name = 11;
+
+  optional bytes called_peer_id = 20;
+  optional string called_display_name = 21;
+
+  optional bytes webrtc_data = 30;
+}
