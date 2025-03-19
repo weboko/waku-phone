@@ -19,10 +19,13 @@
       //@ts-ignore
       window.sendMessage = wakuRtc.sendChatMessage.bind(wakuRtc);
 
-      wakuRtc.rtcConnection.ontrack = e => {
+      localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
+      localAudio.srcObject = localStream;
+      localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
+      wakuRtc.rtcConnection.addEventListener("track", e => {
         console.log("ontrack", e);
         remoteAudio.srcObject = e.streams[0];
-      };
+      });
     }
 
     async function makeCall() {
@@ -30,9 +33,6 @@
         // @ts-ignore
         await window.init(inputValue);
       }
-      localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
-      localAudio.srcObject = localStream;
-      localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
     }
 
     function handleInput(event: Event) {
