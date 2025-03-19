@@ -18,6 +18,11 @@
       window.init = wakuRtc.initiateConnection.bind(wakuRtc);
       //@ts-ignore
       window.sendMessage = wakuRtc.sendChatMessage.bind(wakuRtc);
+
+      wakuRtc.rtcConnection.ontrack = e => {
+        console.log("ontrack", e);
+        remoteAudio.srcObject = e.streams[0];
+      };
     }
 
     async function makeCall() {
@@ -27,10 +32,6 @@
       }
       localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
       localAudio.srcObject = localStream;
-      wakuRtc.rtcConnection.ontrack = e => {
-        console.log("ontrack", e);
-        remoteAudio.srcObject = e.streams[0];
-      };
       localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
     }
 
