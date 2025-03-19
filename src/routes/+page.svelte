@@ -21,11 +21,16 @@
     }
 
     async function makeCall() {
-      // @ts-ignore
-      await window.init(inputValue);
+      if (inputValue) {
+        // @ts-ignore
+        await window.init(inputValue);
+      }
       localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
       localAudio.srcObject = localStream;
-      wakuRtc.rtcConnection.ontrack = e => remoteAudio.srcObject = e.streams[0];
+      wakuRtc.rtcConnection.ontrack = e => {
+        console.log("ontrack", e);
+        remoteAudio.srcObject = e.streams[0];
+      };
       localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
     }
 
