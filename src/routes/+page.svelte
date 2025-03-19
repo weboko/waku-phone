@@ -1,8 +1,10 @@
 <script lang="ts">
   import { Waku, WakuRTC } from "$lib";
 
-    let inputValue = '';
+    let inputValue = '', localStream:MediaStream;
+    let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement;
     var localPeerId = ''; 
+    var wakuRtc: WakuRTC;
     async function handleClick() {
       const node = await Waku.get();
       localPeerId = node.peerId.toString();
@@ -10,9 +12,8 @@
       // @ts-ignore
       window.waku = node;
 
-      const wakuRtc = new WakuRTC({ node });
+      wakuRtc = new WakuRTC({ node });
       await wakuRtc.start();
-
       // @ts-ignore
       window.init = wakuRtc.initiateConnection.bind(wakuRtc);
       //@ts-ignore
@@ -22,10 +23,23 @@
     async function makeCall() {
       // @ts-ignore
       await window.init(inputValue);
+      localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
+      localAudio.srcObject = localStream;
+      wakuRtc.rtcConnection.ontrack = e => remoteAudio.srcObject = e.streams[0];
+      localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
     }
 
     function handleInput(event: Event) {
       inputValue = (event.target as HTMLInputElement).value;
+    }
+
+    function hangUpCall(){
+      if (wakuRtc.rtcConnection) {
+        wakuRtc.rtcConnection.close();
+        //wakuRtc.rtcConnection = null;
+      }
+      localStream.getAudioTracks().forEach(track => track.stop());
+      //localStream = null;
     }
 
 </script>
@@ -46,6 +60,17 @@
   <p>Current value: {inputValue}</p>
 </div>
 <button on:click={makeCall}>Call</button>
+<div id="audio">
+  <div>
+      <div class="label">Local audio:</div>
+      <audio bind:this={localAudio}  autoplay controls muted></audio>
+      </div>
+  <div>
+      <audio bind:this={remoteAudio} autoplay controls></audio>
+  </div>
+</div>
+<button on:click={hangUpCall}>Hangup-Call</button>
+
 
 <style>
     button {

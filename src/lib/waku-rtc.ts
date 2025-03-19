@@ -17,7 +17,7 @@ export class WakuRTC {
   private readonly encoder: IEncoder;
   private readonly decoder: IDecoder<any>;
 
-  private readonly rtcConnection: RTCPeerConnection;
+  public readonly rtcConnection: RTCPeerConnection;
   private iceCandidates: RTCIceCandidate[] = [];
 
   private inboundChannel: RTCDataChannel | undefined;
