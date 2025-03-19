@@ -26,6 +26,7 @@ export class WakuRTC {
   private filterUnsubscribe: undefined | (() => void);
 
   private isFree: boolean = true;
+  private inCallwith: string= '';
 
   public constructor(params: WakuRTCParams) {
     this.node = params.node;
@@ -34,17 +35,16 @@ export class WakuRTC {
       contentTopic: DEFAULT_CONTENT_TOPIC,
       pubsubTopicShardInfo: {
         clusterId: 42,
-        shard: 0,
+        shard: 0
       }
     });
-    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC, { clusterId: 42, shard: 0 });
+    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC, { clusterId: 42 , shard: 0});
 
     this.rtcConnection = new RTCPeerConnection({
       iceServers: [{ urls: DEFAULT_STUN }],
       ...(params.config || {})
     });
     this.outboundChannel = this.rtcConnection.createDataChannel("outbound");
-
     this.onICECandidate = this.onICECandidate.bind(this);
     this.onInboundChannel = this.onInboundChannel.bind(this);
   }
@@ -60,7 +60,7 @@ export class WakuRTC {
     this.rtcConnection.addEventListener("icecandidate", this.onICECandidate);
 
     try {
-      this.filterUnsubscribe = await this.node.filter.subscribeWithUnsubscribe(this.decoder, this.onWakuMessage);
+      this.filterUnsubscribe = await this.node.filter.subscribeWithUnsubscribe(this.decoder, this.onWakuMessage.bind(this));
     } catch(e) {
       console.error("Error while Filter subscribe:", e);
     }
@@ -90,11 +90,15 @@ export class WakuRTC {
   }
 
   public async initiateConnection(peerId: string): Promise<void> {
-    await this.sendWakuMessage("call", this.node.peerId);
+    this.inCallwith = peerId;
+    await this.sendWakuMessage("call", peerId);
   }
 
   private onInboundChannel(event: RTCDataChannelEvent): void {
     this.inboundChannel = event.channel;
+    this.inboundChannel.addEventListener("message", (event) => {
+      console.log("Received message:", event.data);
+    });
   }
 
   private async onICECandidate(event: RTCPeerConnectionIceEvent): Promise<void> {
@@ -109,9 +113,13 @@ export class WakuRTC {
   private async onWakuMessage(message: IDecodedMessage): Promise<void> {
     const payload = bytesToUtf8(message.payload);
     const data = JSON.parse(payload);
-
+    console.log("received message:", data);
+    if (data.receiver !== this.node.peerId.toString() ||
+        data.sender === this.node.peerId.toString()) {
+      return;
+    }
     if (data.type === "call") {
-      await this.onConnectionRequestMessage(data.payload);
+      await this.onConnectionRequestMessage(data.payload, data.sender);
     } else if (data.type === "candidate") {
       await this.onCandidateMessage(data.payload);
     } else if (data.type === "offer") {
@@ -148,13 +156,13 @@ export class WakuRTC {
     );
   }
 
-  private async onConnectionRequestMessage(peerId: string): Promise<void> {
+  private async onConnectionRequestMessage(peerId: string, remotePeerId: string): Promise<void> {
     if(!this.isFree || !this.node.peerId.equals(peerId)) {
       return;
     }
 
     this.isFree = false;
-
+    this.inCallwith = remotePeerId;
     const offer = await this.rtcConnection.createOffer();
     await this.rtcConnection.setLocalDescription(offer);
 
@@ -173,10 +181,16 @@ export class WakuRTC {
     const response = await this.node.lightPush.send(this.encoder, {
       payload: utf8ToBytes(JSON.stringify({
         type,
-        payload
+        payload,
+        sender: this.node.peerId.toString(),
+        receiver: this.inCallwith
       }))
     });
 
     console.log(`sendWakuMessage of type:${type}, with ${response}`);
+  }
+
+  public sendChatMessage(message: string): void {
+    this.outboundChannel.send(message);
   }
 }

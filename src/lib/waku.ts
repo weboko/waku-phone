@@ -24,6 +24,7 @@ export class Waku {
       });
       await node.start()
       await node.dial("/dns4/waku-test.bloxy.one/tcp/8095/wss/p2p/16Uiu2HAmSZbDB7CusdRhgkD81VssRjQV5ZH13FbzCGcdnbbh6VwZ");
+      localStorage.setItem('debug', 'waku*');
 
       return node;
     })();
