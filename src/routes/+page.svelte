@@ -3,6 +3,7 @@
   import { AudioSignal } from "$lib/audiosignal";
   import { MediaStreams } from "$lib/media";
 	import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
     let inputValue = '';
     let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement, singalAudio: HTMLAudioElement;
@@ -60,6 +61,7 @@
 <h1>WebRTC Calling with Waku Signalling</h1>
 <p>Visit <a href="https://waku.org">waku</a> to read the documentation</p>
 <div>
+<button onclick={() => goto('/dial-screen')}>Go to New Dial Screen</button>
 <button onclick={handleConnect} disabled={wakuConnected}>{wakuConnected ? 'Connected' : 'Connect to Network'}</button>
 </div>
 <p> Our PeerId: {localPeerId}</p>
