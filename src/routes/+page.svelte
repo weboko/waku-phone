@@ -1,81 +1,86 @@
 <script lang="ts">
   import { Waku, WakuRTC } from "$lib";
+  import { MediaStreams } from "$lib/media";
 
-    let inputValue = '', localStream:MediaStream;
+    let inputValue = '';
     let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement;
-    var localPeerId = ''; 
+    var localPeerId = $state('');
     var wakuRtc: WakuRTC;
-    async function handleClick() {
+    let mediaStreams: MediaStreams;
+    let wakuConnected = $state(false);
+    let isFree = $state(true);
+    async function handleConnect() {
       const node = await Waku.get();
       localPeerId = node.peerId.toString();
-      console.log('Local peer ID:', localPeerId);
       // @ts-ignore
       window.waku = node;
+      wakuConnected = node.isConnected();
 
-      wakuRtc = new WakuRTC({ node });
+      wakuRtc = new WakuRTC({ node});
       await wakuRtc.start();
+      mediaStreams = new MediaStreams(localAudio, remoteAudio, wakuRtc.rtcConnection);
+      wakuRtc.mediaStreams = mediaStreams;
+      isFree = wakuRtc.isFree;
       // @ts-ignore
-      window.init = wakuRtc.initiateConnection.bind(wakuRtc);
+      window.initiateConn = wakuRtc.initiateConnection.bind(wakuRtc);
       //@ts-ignore
       window.sendMessage = wakuRtc.sendChatMessage.bind(wakuRtc);
+      await setupStreams();
+    }
 
-      localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
-      localAudio.srcObject = localStream;
-      localStream.getAudioTracks().forEach(track =>  wakuRtc.rtcConnection.addTrack(track, localStream));
-      wakuRtc.rtcConnection.addEventListener("track", e => {
-        console.log("ontrack", e);
-        remoteAudio.srcObject = e.streams[0];
-      });
+    async function setupStreams(){
+      mediaStreams.setupLocalStream();
+      mediaStreams.setupRemoteStream();
     }
 
     async function makeCall() {
       if (inputValue) {
+        //await setupStreams();
         // @ts-ignore
-        await window.init(inputValue);
+        await window.initiateConn(inputValue);
       }
-    }
-
-    function handleInput(event: Event) {
-      inputValue = (event.target as HTMLInputElement).value;
     }
 
     function hangUpCall(){
       if (wakuRtc.rtcConnection) {
+        wakuRtc.hangupCall();
         wakuRtc.rtcConnection.close();
         //wakuRtc.rtcConnection = null;
       }
-      localStream.getAudioTracks().forEach(track => track.stop());
-      //localStream = null;
+      mediaStreams.stopStreams();
     }
 
 </script>
 
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-
-<button on:click={handleClick}>Connect</button>
-<p> peerId: {localPeerId}</p>
+<h1>WebRTC Calling with Waku Signalling</h1>
+<p>Visit <a href="https://waku.org">waku</a> to read the documentation</p>
+<div>
+<button on:click={handleConnect} disabled={wakuConnected}>{wakuConnected ? 'Connected' : 'Connect to Network'}</button>
+</div>
+<p> Our PeerId: {localPeerId}</p>
 <div class="form-group">
-  <label for="string-input">Enter text:</label>
+  <label for="string-input">Call Peer:</label>
   <input 
     id="string-input"
     type="text" 
+    size="70"
     bind:value={inputValue}
-    placeholder="Type something here..." 
+    placeholder="Remote PeerId..."
   />
-  <p>Current value: {inputValue}</p>
 </div>
-<button on:click={makeCall}>Call</button>
+<br/>
+<div>
+  <button on:click={makeCall}>Call</button>
+  <button on:click={hangUpCall} >Hangup-Call</button>
+</div>
 <div id="audio">
   <div>
-      <div class="label">Local audio:</div>
-      <audio bind:this={localAudio}  autoplay controls muted></audio>
+      <audio bind:this={localAudio}  autoplay controls muted hidden></audio>
       </div>
   <div>
-      <audio bind:this={remoteAudio} autoplay controls></audio>
+      <audio bind:this={remoteAudio} autoplay controls hidden></audio>
   </div>
 </div>
-<button on:click={hangUpCall}>Hangup-Call</button>
 
 
 <style>
@@ -90,5 +95,12 @@
 
     button:hover {
         background-color: #45a049;
+    }
+
+    button:disabled {
+        background-color: #cccccc;
+        color: #888888;
+        cursor: not-allowed;
+        opacity: 0.7;
     }
 </style>
