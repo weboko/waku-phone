@@ -1,3 +1,7 @@
+<svelte:head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</svelte:head>
+
 <script lang="ts">
   import { Waku, WakuRTC } from "$lib";
   import { onMount } from "svelte";
@@ -12,6 +16,8 @@
   let callTimer: ReturnType<typeof setTimeout>;
   let warningMessage = '';
   let audioContext: AudioContext;
+  let useNumpad = true;
+  let numpadInput = '';
 
   onMount(async () => {
     const node = await Waku.get();
@@ -63,6 +69,21 @@
     inputValue = (event.target as HTMLInputElement).value;
   }
 
+  function handleNumpadInput(digit: string) {
+    numpadInput += digit;
+    inputValue = mapNumpadToPeerId(numpadInput);
+  }
+
+  function clearNumpadInput() {
+    numpadInput = '';
+    inputValue = '';
+  }
+
+  function mapNumpadToPeerId(numpadInput: string): string {
+    // TODO: Stubbed mapping function
+    return numpadInput;
+  }
+
   function hangUpCall() {
     console.log('hangUpCall function triggered');
     if (localStream) {
@@ -91,21 +112,13 @@
 <h1>Waku Phone</h1>
 <p>Local peer ID: {localPeerId}</p>
 <div class="form-group">
-  <label for="string-input">Enter peer ID to call:</label>
+  <label for="toggle-input">Use Numpad:</label>
   <input 
-    id="string-input"
-    type="text" 
-    bind:value={inputValue}
-    placeholder="Enter peer ID..." 
-    oninput={handleInput}
+    id="toggle-input"
+    type="checkbox" 
+    bind:checked={useNumpad}
   />
 </div>
-{#if warningMessage}
-  <p class="warning">{warningMessage}</p>
-{/if}
-<button onclick={makeCall} disabled={callActive}>Call</button>
-<button onclick={hangUpCall} disabled={!callActive}>Hangup-Call</button>
-
 {#if callActive}
   <div class="call-status">
     <span class="indicator"></span>
@@ -113,27 +126,89 @@
     <span>Duration: {Math.floor(callDuration / 60)}:{callDuration % 60}</span>
   </div>
 {/if}
+{#if warningMessage}
+  <p class="warning">{warningMessage}</p>
+{/if}
+<div class="button-group">
+  <button onclick={makeCall} disabled={callActive} class="call-button">
+    <i class="fas fa-phone"></i>
+  </button>
+  <button onclick={hangUpCall} disabled={!callActive} class="hangup-button">
+    <i class="fas fa-phone-slash"></i>
+  </button>
+</div>
+{#if useNumpad}
+  <div class="numpad-input-box">
+    <p class="numpad-input">{numpadInput}</p>
+  </div>
+  <div class="numpad">
+    {#each ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'] as digit}
+      <button onclick={() => handleNumpadInput(digit)}>{digit}</button>
+    {/each}
+    <button onclick={clearNumpadInput} style="margin-bottom: 1rem;">Clear</button>
+  </div>
+{:else}
+  <div class="form-group">
+    <label for="string-input">Enter peer ID to call:</label>
+    <input 
+      id="string-input"
+      type="text" 
+      bind:value={inputValue}
+      placeholder="Enter peer ID..." 
+      oninput={handleInput}
+    />
+  </div>
+{/if}
 
 <style>
-  button {
-    padding: 0.5rem 1rem;
+  .button-group {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .call-button {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: #4CAF50;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    height: 2.5rem;
+    width: 6.5rem;
   }
 
-  button:disabled {
+  .hangup-button {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    height: 2.5rem;
+    width: 6.5rem;
+  }
+
+  .call-button:disabled, .hangup-button:disabled {
     background-color: grey;
     cursor: not-allowed;
   }
 
-  button:hover {
+  .call-button:hover {
     background-color: #45a049;
   }
 
+  .hangup-button:hover {
+    background-color: darkred;
+  }
+
   .form-group {
+    margin-top: 1rem;
     margin-bottom: 1rem;
   }
 
@@ -153,5 +228,54 @@
     background-color: red;
     border-radius: 50%;
     margin-right: 0.5rem;
+  }
+
+  .warning {
+    color: red;
+    font-weight: bold;
+  }
+
+  .numpad-input-box {
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    width: 13rem; 
+    height: 4rem;
+  }
+
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    width: 200px; 
+    height: 300px; 
+  }
+
+  .numpad button {
+    font-size: 1.5rem;
+    aspect-ratio: 1 / 1; /* Makes the buttons square */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3d71d1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .numpad button:hover {
+    background-color: #45a049;
+  }
+
+  .numpad-input {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1rem;
+    height: 100%;
+    width: 100%;
   }
 </style>
