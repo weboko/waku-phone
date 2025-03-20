@@ -1,14 +1,17 @@
 <script lang="ts">
   import { Waku, WakuRTC } from "$lib";
+  import { AudioSignal } from "$lib/audiosignal";
   import { MediaStreams } from "$lib/media";
+	import { onMount } from 'svelte';
 
     let inputValue = '';
-    let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement;
+    let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement, singalAudio: HTMLAudioElement;
     var localPeerId = $state('');
     var wakuRtc: WakuRTC;
     let mediaStreams: MediaStreams;
     let wakuConnected = $state(false);
     let isFree = $state(true);
+
     async function handleConnect() {
       const node = await Waku.get();
       localPeerId = node.peerId.toString();
@@ -18,8 +21,10 @@
 
       wakuRtc = new WakuRTC({ node});
       await wakuRtc.start();
+
       mediaStreams = new MediaStreams(localAudio, remoteAudio, wakuRtc.rtcConnection);
       wakuRtc.mediaStreams = mediaStreams;
+      wakuRtc.audioSignal = new AudioSignal(singalAudio);
       isFree = wakuRtc.isFree;
       // @ts-ignore
       window.initiateConn = wakuRtc.initiateConnection.bind(wakuRtc);
@@ -55,7 +60,7 @@
 <h1>WebRTC Calling with Waku Signalling</h1>
 <p>Visit <a href="https://waku.org">waku</a> to read the documentation</p>
 <div>
-<button on:click={handleConnect} disabled={wakuConnected}>{wakuConnected ? 'Connected' : 'Connect to Network'}</button>
+<button onclick={handleConnect} disabled={wakuConnected}>{wakuConnected ? 'Connected' : 'Connect to Network'}</button>
 </div>
 <p> Our PeerId: {localPeerId}</p>
 <div class="form-group">
@@ -70,8 +75,8 @@
 </div>
 <br/>
 <div>
-  <button on:click={makeCall}>Call</button>
-  <button on:click={hangUpCall} >Hangup-Call</button>
+  <button onclick={makeCall}>Call</button>
+  <button onclick={hangUpCall} >Hangup-Call</button>
 </div>
 <div id="audio">
   <div>
@@ -80,6 +85,7 @@
   <div>
       <audio bind:this={remoteAudio} autoplay controls hidden></audio>
   </div>
+  <audio bind:this={singalAudio} preload="none" hidden></audio>
 </div>
 
 

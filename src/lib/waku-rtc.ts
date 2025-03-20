@@ -1,6 +1,7 @@
 import type { IDecodedMessage, IDecoder, IEncoder, LightNode } from "@waku/sdk";
 import { createDecoder, createEncoder, bytesToUtf8, utf8ToBytes } from "@waku/sdk";
 import type { MediaStreams } from "./media";
+import { AudioSignal, SignalType } from "./audiosignal";
 
 type WakuRTCParams = {
   node: LightNode;
@@ -26,6 +27,7 @@ export class WakuRTC {
 
   private filterUnsubscribe: undefined | (() => void);
   public mediaStreams: MediaStreams | undefined;
+  public audioSignal: AudioSignal | undefined;
   public isFree: boolean = true;
   private inCallwith: string= '';
 
@@ -91,8 +93,10 @@ export class WakuRTC {
   }
 
   public async initiateConnection(peerId: string): Promise<void> {
+    this.audioSignal?.playSignal(SignalType.RINGING);
+
     this.inCallwith = peerId;
-    await this.sendWakuMessage("call", peerId);
+    await this.sendWakuMessage("call", '');
   }
 
   public async hangupCall(): Promise<void> {
@@ -120,13 +124,15 @@ export class WakuRTC {
   private async onWakuMessage(message: IDecodedMessage): Promise<void> {
     const payload = bytesToUtf8(message.payload);
     const data = JSON.parse(payload);
+
     if (data.receiver !== this.node.peerId.toString() ||
         data.sender === this.node.peerId.toString()) {
       return;
     }
     console.log("received a waku message with payload:", data);
+
     if (data.type === "call") {
-      await this.onConnectionRequestMessage(data.payload, data.sender);
+      await this.onConnectionRequestMessage(data.receiver, data.sender);
     } else if (data.type === "candidate") {
       await this.onCandidateMessage(data.payload);
     } else if (data.type === "offer") {
@@ -137,10 +143,22 @@ export class WakuRTC {
       this.onReadyMessage();
     }else if (data.type === "bye"){
       this.onByeMessage();
+    } else if (data.type === "busy"){
+      this.onBusyMessage();
     }
   }
 
+  private async onBusyMessage() {
+    this.audioSignal?.playSignal(SignalType.BUSY, 5000);
+    this.isFree = true;
+    this.inCallwith = '';
+    this.rtcConnection.close();
+  }
+
   private async onByeMessage() {
+    if (this.isFree){
+      return;
+    }
     this.isFree = true;
     this.inCallwith = '';
     this.rtcConnection.close();
@@ -164,6 +182,7 @@ export class WakuRTC {
     this.rtcConnection.setLocalDescription(answer);
 
     await this.sendWakuMessage("answer", answer);
+    this.audioSignal?.stopSignal();
   }
 
   private async onAnswerMessage(answer: RTCSessionDescriptionInit) {
@@ -173,7 +192,8 @@ export class WakuRTC {
   }
 
   private async onConnectionRequestMessage(peerId: string, remotePeerId: string): Promise<void> {
-    if(!this.isFree || !this.node.peerId.equals(peerId)) {
+    if(!this.isFree) {
+      await this.sendWakuMessage("busy",'', remotePeerId);
       return;
     }
     //this.mediaStreams?.setupLocalStream();
@@ -194,17 +214,17 @@ export class WakuRTC {
     console.log("RTC: partner is ready");
   }
 
-  private async sendWakuMessage(type: string, payload: any): Promise<void> {
+  private async sendWakuMessage(type: string, payload: any, remotePeerId:string=this.inCallwith): Promise<void> {
     const response = await this.node.lightPush.send(this.encoder, {
       payload: utf8ToBytes(JSON.stringify({
         type,
         payload,
         sender: this.node.peerId.toString(),
-        receiver: this.inCallwith
+        receiver: remotePeerId
       }))
     });
 
-    console.log(`sendWakuMessage of type:${type}, with ${response}`);
+    console.log(`sendWakuMessage of type:${type}, with ${response} , receiver ${remotePeerId}`);
   }
 
   public sendChatMessage(message: string): void {
