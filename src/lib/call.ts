@@ -50,15 +50,15 @@ export class Call {
       iceServers: [{ urls: DEFAULT_STUN }],
     });
 
-    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
-
-    this.onStateChange = this.onStateChange.bind(this);
-
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
     this.rtcConnection.addEventListener("icecandidate", (event) => {
       console.log("DEBUG: icecandidate", event);
       this.handleIceCandidates(event);
     });
+
+    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
+
+    this.onStateChange = this.onStateChange.bind(this);
 
     this.mediaStreams.setupLocalStream();
     this.mediaStreams.setupRemoteStream();
