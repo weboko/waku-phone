@@ -38,6 +38,7 @@ export class Call {
   private readonly handleIceCandidates: HandleIceCandidatesCallback;
 
   private rtcConnection: RTCPeerConnection;
+  private outboundChannel: RTCDataChannel;
 
   constructor(params: CallParams) {
     this.role = params.role;
@@ -49,12 +50,18 @@ export class Call {
     this.rtcConnection = new RTCPeerConnection({
       iceServers: [{ urls: DEFAULT_STUN }],
     });
+    this.outboundChannel = this.rtcConnection.createDataChannel("outbound");
 
+    console.log("DEBUG: before constructor");
+    this.rtcConnection.addEventListener("datachannel", (event) => {
+      console.log("DEBUG: datachannel", event);
+    });
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
     this.rtcConnection.addEventListener("icecandidate", (event) => {
       console.log("DEBUG: icecandidate", event);
       this.handleIceCandidates(event);
     });
+    console.log("DEBUG: after constructor");
 
     this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
 
@@ -69,6 +76,7 @@ export class Call {
   }
 
   public async stop(): Promise<void> {
+    console.log("DEBUG: CALL STOP CALLED");
     if (!this.rtcConnection) {
       return;
     }
