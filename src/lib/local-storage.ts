@@ -19,4 +19,8 @@ export class Local {
 
     return await generateKeyPairFromSeed("Ed25519", hexToBytes(seed));
   }
+
+  public static setDebug(): void {
+    localStorage.setItem('debug', 'waku*');
+  }
 }
