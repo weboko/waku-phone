@@ -202,6 +202,14 @@ export class Phone {
       webrtcData: offer,
       recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
     });
+
+  // Dispatch incoming call event
+    this.events.dispatchEvent(new CustomEvent('incomingCall', {
+      detail: {
+        callerPeerId: message.callerPeerId,
+        callId: message.callId
+      }
+    }));
   }
 
   private async handleRingingMessage(message: WakuPhoneMessage): Promise<void> {
