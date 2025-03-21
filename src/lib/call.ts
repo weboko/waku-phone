@@ -31,18 +31,20 @@ const DEFAULT_STUN = "stun:stun.l.google.com:19302";
 
 export class Call {
   private readonly role: Role;
-  private readonly calledId: string;
-  private readonly callerId: string;
+  public readonly callId: string;
+  public readonly calledId: string;
+  public readonly callerId: string;
   private readonly events: EventTarget;
   private readonly mediaStreams: MediaStreams;
   private readonly handleIceCandidates: HandleIceCandidatesCallback;
 
   private rtcConnection: RTCPeerConnection;
   private outboundChannel: RTCDataChannel;
-  private inboundChannel: RTCDataChannel;
+  private inboundChannel?: RTCDataChannel;
 
   constructor(params: CallParams) {
     this.role = params.role;
+    this.callId = params.callId;
     this.calledId = params.calledId;
     this.callerId = params.callerId;
     this.events = params.events;

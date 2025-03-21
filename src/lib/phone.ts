@@ -89,7 +89,7 @@ export class Phone {
       });
     await this.call.start();
     await this.waku.sendDialMessage({
-      callId:callId,
+      callId: callId,
       callerPeerId:callerPeerId,
       calledPeerId:calledPeerId,
       recipient: calledPeerId,
@@ -101,6 +101,13 @@ export class Phone {
       logger.warn("hangup: no ongoing calls, ignoring");
       return;
     }
+
+    await this.waku.sendByeMessage({
+      callId: this.call.callId,
+      calledPeerId: this.call.calledId,
+      callerPeerId: this.call.callerId,
+      recipient: this.getRecepient(this.call.calledId, this.call.callerId),
+    });
 
     this.call.stop();
     this.call = undefined;
@@ -155,7 +162,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
-        recipient: this.getRecepient(message),
+        recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
       });
       return;
     }
@@ -180,7 +187,7 @@ export class Phone {
           callerPeerId: message.callerPeerId!,
           calledPeerId: message.calledPeerId!,
           webrtcData: event.candidate,
-          recipient: this.getRecepient(message),
+          recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
         });
       }).bind(this),
     });
@@ -193,7 +200,7 @@ export class Phone {
       callerPeerId: message.callerPeerId!,
       calledPeerId: message.calledPeerId!,
       webrtcData: offer,
-      recipient: this.getRecepient(message),
+      recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
     });
   }
 
@@ -209,7 +216,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
-        recipient: this.getRecepient(message),
+        recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
       });
       return;
     }
@@ -221,7 +228,7 @@ export class Phone {
       calledPeerId: message.calledPeerId!,
       callerPeerId: message.callerPeerId!,
       webrtcData: answer,
-      recipient: this.getRecepient(message),
+      recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
     });
   }
 
@@ -237,6 +244,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
+        recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
       });
       return;
     }
@@ -261,7 +269,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
-        recipient: this.getRecepient(message),
+        recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
       });
       return;
     }
@@ -300,11 +308,11 @@ export class Phone {
     }
   }
 
-  private getRecepient(message: WakuPhoneMessage):string {
+  private getRecepient(calledPeerId: string, callerPeerId: string):string {
     if (this.call?.isOriginator()){
-      return message.calledPeerId!;
+      return calledPeerId!;
     }else{
-      return message.callerPeerId!;
+      return callerPeerId!;
     }
   }
 }
