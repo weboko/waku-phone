@@ -54,17 +54,17 @@ export class Call {
 
     this.onStateChange = this.onStateChange.bind(this);
 
+    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
+
+    this.mediaStreams.setupLocalStream();
+    this.mediaStreams.setupRemoteStream();
+
     // DO NOT REMOVE IT!!!!!!!!!!
     this.rtcConnection.addEventListener("datachannel", (event) => {
       this.outboundChannel = event.channel;
     });
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
     this.rtcConnection.addEventListener("icecandidate", this.handleIceCandidates);
-
-    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
-
-    this.mediaStreams.setupLocalStream();
-    this.mediaStreams.setupRemoteStream();
   } 
 
   public isForWakuMessage(message: WakuPhoneMessage): boolean {
