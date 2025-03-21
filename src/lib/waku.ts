@@ -52,10 +52,10 @@ type WebRTCParams = {
   recipient:string;
 };
 
-type DialParams = AppParams;
+type DialParams = WebRTCParams;
 
 // includes WebRTC offer
-type RingingParams = WebRTCParams;
+type RingingParams = AppParams;
 
 // includes WebRTC answer
 type AnswerParams = WebRTCParams;

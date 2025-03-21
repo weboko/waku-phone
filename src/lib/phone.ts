@@ -88,11 +88,14 @@ export class Phone {
         }).bind(this)
       });
     await this.call.start();
+
+    const offer = await this.call.prepareOffer();
     await this.waku.sendDialMessage({
       callId: callId,
       callerPeerId:callerPeerId,
       calledPeerId:calledPeerId,
       recipient: calledPeerId,
+      webrtcData: offer
     });
   }
 
@@ -109,6 +112,37 @@ export class Phone {
       recipient: this.getRecepient(this.call.calledId, this.call.callerId),
     });
 
+    this.call.stop();
+    this.call = undefined;
+  }
+
+  public async answerCall(): Promise<void> {
+    if (!this.call) {
+      logger.warn("answerCall: no ongoing calls, ignoring");
+      return;
+    }
+    const answer = await this.call.prepareAnswer();
+
+    await this.waku.sendAnswerMessage({
+      callId: this.call.callId,
+      calledPeerId: this.call.calledId!,
+      callerPeerId: this.call.callerId!,
+      webrtcData: answer,
+      recipient: this.getRecepient(this.call.calledId!, this.call.callerId!),
+    });
+  }
+
+  public async rejectCall(): Promise<void> {
+    if (!this.call) {
+      logger.warn("rejectCall: no ongoing calls, ignoring");
+      return;
+    }
+    await this.waku.sendRejectMessage({
+      callId: this.call.callId,
+      calledPeerId: this.call.calledId!,
+      callerPeerId: this.call.callerId!,
+      recipient: this.getRecepient(this.call.calledId!, this.call.callerId!),
+    });
     this.call.stop();
     this.call = undefined;
   }
@@ -192,14 +226,12 @@ export class Phone {
       }).bind(this),
     });
     await this.call.start();
-
-    const offer = await this.call.prepareOffer();
+    await this.call.setRemoteDescription(message.webrtcData!);
 
     await this.waku.sendRingingMessage({
       callId: message.callId,
       callerPeerId: message.callerPeerId!,
       calledPeerId: message.calledPeerId!,
-      webrtcData: offer,
       recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
     });
 
@@ -228,16 +260,6 @@ export class Phone {
       });
       return;
     }
-
-    const answer = await this.call.prepareAnswer(message.webrtcData!);
-
-    await this.waku.sendAnswerMessage({
-      callId: message.callId,
-      calledPeerId: message.calledPeerId!,
-      callerPeerId: message.callerPeerId!,
-      webrtcData: answer,
-      recipient: this.getRecepient(message.calledPeerId!, message.callerPeerId!),
-    });
   }
 
   private async handleCandidateMessage(message: WakuPhoneMessage): Promise<void> {

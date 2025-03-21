@@ -3,23 +3,23 @@
 </svelte:head>
 
 <script lang="ts">
-  import { Waku, WakuRTC } from "$lib";
+  import { Waku } from "$lib";
   import { onMount } from "svelte";
   import { tick } from "svelte";
   import { Local } from "$lib/local-storage";
   import { getPeerIdFromPhoneNumber } from "$lib/utils";
   import IncomingCallPopup from './incoming-call/IncomingCallPopUp.svelte';
+  import { Phone } from "$lib/phone";
 
   let inputValue = '';
-  let localStream: MediaStream;
+  // let localStream: MediaStream;
   let localPeerId = '';
   let localPhoneNumber = '';
-  let wakuRtc: WakuRTC;
+  let phone: Phone;
   let callActive = false;
   let callDuration = 0;
   let callTimer: ReturnType<typeof setTimeout>;
   let warningMessage = '';
-  let audioContext: AudioContext;
   let useNumpad = true;
   let numpadInput = '';
   let calledPartyPeerId = '';
@@ -33,18 +33,26 @@
     console.log('Local peer ID:', localPeerId);
     console.log('Local phone number:', localPhoneNumber); // Log phone number
 
-    // TODO: this should interface with Waku Phone Call not WakuRTC directly
-    wakuRtc = new WakuRTC({ node });
-    await wakuRtc.start();
+    const systemAudio = new Audio();
+    const localAudio = new Audio();
+    const remoteAudio = new Audio();
 
-    window.addEventListener('beforeunload', () => {
-      if (wakuRtc.rtcConnection) {
-        console.log('Closing RTC connection before window unload');
-        wakuRtc.rtcConnection.close();
-      }
+    phone = new Phone({
+      waku: node,
+      systemAudio,
+      localAudio,
+      remoteAudio
     });
 
-    audioContext = new AudioContext();
+    await phone.start();
+
+    phone.events.addEventListener('incomingCall', (event) => {
+      handleIncomingCall()
+    });
+
+    window.addEventListener('beforeunload', async () => {
+      await phone.stop();
+    });
   });
 
   async function makeCall() {
@@ -62,17 +70,8 @@
       } else {
         calledPartyPeerId = inputValue;
       }
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      localStream.getAudioTracks().forEach(track => wakuRtc.rtcConnection.addTrack(track, localStream));
 
-      wakuRtc.rtcConnection.addEventListener("track", e => {
-        console.log("ontrack", e);
-        const remoteStream = e.streams[0];
-        const remoteAudioSource = audioContext.createMediaStreamSource(remoteStream);
-        remoteAudioSource.connect(audioContext.destination);
-      });
-
-      await wakuRtc.initiateConnection(calledPartyPeerId);
+      await phone.dial(calledPartyPeerId);
       startCall();
     } catch (error) {
       console.error('Error in makeCall:', error);
@@ -93,12 +92,9 @@
     inputValue = '';
   }
 
-  function hangUpCall() {
+  async function hangUpCall() {
     console.log('hangUpCall function triggered');
-    if (localStream) {
-      console.log('Stopping local audio tracks');
-      localStream.getAudioTracks().forEach(track => track.stop());
-    }
+    await phone.hangup();
     endCall();
   }
 
@@ -109,6 +105,8 @@
       callDuration++;
       tick();
     }, 1000);
+
+    // remoteAudio.autoplay = true;
   }
 
   function endCall() {
@@ -121,16 +119,16 @@
     incomingCall = true;
   }
 
-  function acceptCall() {
-    console.log('Call accepted');
+  function answerCall() {
+    console.log('Call answered');
     incomingCall = false;
-    // Add logic to handle accepting the call
+    phone.answerCall();
   }
 
   function rejectCall() {
     console.log('Call rejected');
     incomingCall = false;
-    // Add logic to handle rejecting the call
+    phone.rejectCall();
   }
 </script>
   
@@ -163,9 +161,6 @@
   <button onclick={hangUpCall} disabled={!callActive} class="hangup-button">
     <i class="fas fa-phone-slash"></i>
   </button>
-  <button onclick={handleIncomingCall} class="simulate-button">
-    Simulate Incoming Call
-  </button>
 </div>
 {#if useNumpad}
   <div class="numpad-input-box">
@@ -193,7 +188,7 @@
 {#if incomingCall}
   <IncomingCallPopup 
     callerPeerId={callerPeerId} 
-    onAccept={acceptCall} 
+    onAccept={answerCall} 
     onReject={rejectCall} 
   />
 {/if}
@@ -316,18 +311,5 @@
     margin-bottom: 1rem;
     height: 100%;
     width: 100%;
-  }
-
-  .simulate-button {
-    font-size: 1.5rem;
-    align-items: center;
-    justify-content: center;
-    background-color: #3d71d1;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    height: 2.5rem;
-    width: 15rem;
   }
 </style>
