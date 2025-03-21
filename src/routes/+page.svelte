@@ -25,6 +25,7 @@
   let calledPartyPeerId = '';
   let incomingCall = false;
   let callerPeerId = 'QmExampleCallerPeerId';
+  let remoteAudio: HTMLAudioElement
 
   onMount(async () => {
     const node = await Waku.get();
@@ -35,8 +36,8 @@
 
     const systemAudio = new Audio();
     const localAudio = new Audio();
-    const remoteAudio = new Audio();
-
+    remoteAudio = new Audio();
+    
     phone = new Phone({
       waku: node,
       systemAudio,
@@ -44,6 +45,7 @@
       remoteAudio
     });
 
+    await node.start();
     await phone.start();
 
     phone.events.addEventListener('incomingCall', (event) => {
@@ -51,6 +53,7 @@
     });
 
     window.addEventListener('beforeunload', async () => {
+      await node.stop();
       await phone.stop();
     });
   });
@@ -106,7 +109,7 @@
       tick();
     }, 1000);
 
-    // remoteAudio.autoplay = true;
+    remoteAudio.autoplay = true;
   }
 
   function endCall() {
@@ -123,12 +126,14 @@
     console.log('Call answered');
     incomingCall = false;
     phone.answerCall();
+    startCall();
   }
 
   function rejectCall() {
     console.log('Call rejected');
     incomingCall = false;
     phone.rejectCall();
+    endCall();
   }
 </script>
   
