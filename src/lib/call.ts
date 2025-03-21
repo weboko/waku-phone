@@ -55,11 +55,14 @@ export class Call {
     this.onStateChange = this.onStateChange.bind(this);
 
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
-    this.rtcConnection.addEventListener("icecandidate", this.handleIceCandidates);
+    this.rtcConnection.addEventListener("icecandidate", (event) => {
+      console.log("DEBUG: icecandidate", event);
+      this.handleIceCandidates(event);
+    });
 
     this.mediaStreams.setupLocalStream();
     this.mediaStreams.setupRemoteStream();
-  }
+  } 
 
   public isForWakuMessage(message: WakuPhoneMessage): boolean {
     return message?.calledPeerId === this.calledId && message.callerPeerId === this.callerId;
