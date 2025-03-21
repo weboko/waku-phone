@@ -55,7 +55,7 @@ export class Call {
     this.onStateChange = this.onStateChange.bind(this);
 
     this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
-    this.mediaStreams.setupLocalStream();
+    this.mediaStreams.setupRemoteStream();
 
     // DO NOT REMOVE IT!!!!!!!!!!
     this.rtcConnection.addEventListener("datachannel", (event) => {
@@ -83,6 +83,7 @@ export class Call {
   }
 
   public async prepareOffer(): Promise<RTCSessionDescriptionInit> {
+    this.mediaStreams.setupLocalStream();
     const offer = await this.rtcConnection.createOffer();
     await this.rtcConnection.setLocalDescription(offer);
 
@@ -95,8 +96,7 @@ export class Call {
   }
 
   public async prepareAnswer(offer: object): Promise<RTCSessionDescriptionInit> {
-    this.mediaStreams.setupRemoteStream();
-
+    this.mediaStreams.setupLocalStream();
     await this.rtcConnection.setRemoteDescription(
       new RTCSessionDescription(offer as RTCSessionDescriptionInit)
     );
@@ -114,8 +114,7 @@ export class Call {
   }
 
   public async acceptAnswer(answer: object): Promise<void> {
-    this.mediaStreams.setupRemoteStream();
-
+    this.mediaStreams.setupLocalStream();
     await this.rtcConnection.setRemoteDescription(
       new RTCSessionDescription(answer as RTCSessionDescriptionInit)
     );
