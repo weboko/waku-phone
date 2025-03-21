@@ -114,6 +114,8 @@ export class Call {
   }
 
   public async acceptAnswer(answer: object): Promise<void> {
+    this.mediaStreams.setupRemoteStream();
+
     await this.rtcConnection.setRemoteDescription(
       new RTCSessionDescription(answer as RTCSessionDescriptionInit)
     );
