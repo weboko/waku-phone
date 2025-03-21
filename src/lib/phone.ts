@@ -70,20 +70,23 @@ export class Phone {
       events: this.events,
       localAudio: this.params.localAudio,
       remoteAudio: this.params.remoteAudio,
-      handleIceCandidates: async (event) => {
-        if (!event.candidate) {
-          return;
-        }
-
-        await this.waku.sendCandidateMessage({
-          callId,
-          callerPeerId,
-          calledPeerId,
-          webrtcData: event.candidate,
-          recipient: calledPeerId,
-        });
-      },
-    });
+      handleIceCandidates: (
+        async (event: any) => {
+          console.log("DEBUG: handleIceCandidates", event);
+          
+          if (!event.candidate) {
+            return;
+          }
+  
+          await this.waku.sendCandidateMessage({
+            callId,
+            callerPeerId,
+            calledPeerId,
+            webrtcData: event.candidate,
+            recipient: calledPeerId,
+          });
+        }).bind(this)
+      });
     await this.waku.sendDialMessage({
       callId:callId,
       callerPeerId:callerPeerId,
@@ -164,7 +167,9 @@ export class Phone {
       events: this.events,
       localAudio: this.params.localAudio,
       remoteAudio: this.params.remoteAudio,
-      handleIceCandidates: async (event) => {
+      handleIceCandidates: (async (event: any) => {
+        console.log("DEBUG: handleIceCandidates", event);
+
         if (!event.candidate) {
           return;
         }
@@ -176,7 +181,7 @@ export class Phone {
           webrtcData: event.candidate,
           recipient: this.getRecepient(message),
         });
-      },
+      }).bind(this),
     });
 
     const offer = await this.call.prepareOffer();
