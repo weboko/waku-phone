@@ -4,56 +4,35 @@
   import { MediaStreams } from "$lib/media";
 	import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { Phone } from "$lib/phone";
 
     let inputValue = '';
-    let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement, singalAudio: HTMLAudioElement;
+    let localAudio: HTMLAudioElement, remoteAudio : HTMLAudioElement, systemAudio: HTMLAudioElement;
     var localPeerId = $state('');
-    var wakuRtc: WakuRTC;
-    let mediaStreams: MediaStreams;
+    let phone: Phone;
+
     let wakuConnected = $state(false);
-    let isFree = $state(true);
 
     async function handleConnect() {
-      const node = await Waku.get();
-      localPeerId = node.peerId.toString();
+      const waku = await Waku.get();
       // @ts-ignore
-      window.waku = node;
-      wakuConnected = node.isConnected();
+      window.waku = waku["node"];
+      localPeerId = waku.peerId.toString();
+      
+      await waku.start();
 
-      wakuRtc = new WakuRTC({ node});
-      await wakuRtc.start();
-
-      mediaStreams = new MediaStreams(localAudio, remoteAudio, wakuRtc.rtcConnection);
-      wakuRtc.mediaStreams = mediaStreams;
-      wakuRtc.audioSignal = new AudioSignal(singalAudio);
-      isFree = wakuRtc.isFree;
-      // @ts-ignore
-      window.initiateConn = wakuRtc.initiateConnection.bind(wakuRtc);
-      //@ts-ignore
-      window.sendMessage = wakuRtc.sendChatMessage.bind(wakuRtc);
-      await setupStreams();
-    }
-
-    async function setupStreams(){
-      mediaStreams.setupLocalStream();
-      mediaStreams.setupRemoteStream();
+      phone = new Phone({ waku, localAudio, remoteAudio, systemAudio });
+      await phone.start();
     }
 
     async function makeCall() {
       if (inputValue) {
-        //await setupStreams();
-        // @ts-ignore
-        await window.initiateConn(inputValue);
+        await phone.dial(inputValue);
       }
     }
 
     function hangUpCall(){
-      if (wakuRtc.rtcConnection) {
-        wakuRtc.hangupCall();
-        wakuRtc.rtcConnection.close();
-        //wakuRtc.rtcConnection = null;
-      }
-      mediaStreams.stopStreams();
+      phone.hangup();
     }
 
 </script>
@@ -87,7 +66,7 @@
   <div>
       <audio bind:this={remoteAudio} autoplay controls hidden></audio>
   </div>
-  <audio bind:this={singalAudio} preload="none" hidden></audio>
+  <audio bind:this={systemAudio} preload="none" hidden></audio>
 </div>
 
 
