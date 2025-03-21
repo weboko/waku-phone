@@ -129,4 +129,8 @@ export class Call {
       return;
     }
   }
+
+  public isOriginator(): boolean {
+    return this.role === Role.Caller;
+  }
 }

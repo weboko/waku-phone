@@ -34,12 +34,14 @@ export type WakuPhoneMessage = {
   calledPeerId?: string;
   calledDisplayName?: string;
   webrtcData?: object;
+  recipient?:string;
 };
 
 type AppParams = {
   callId: string;
   callerPeerId: string;
   calledPeerId: string;
+  recipient:string;
 };
 
 type WebRTCParams = {
@@ -47,6 +49,7 @@ type WebRTCParams = {
   callerPeerId: string;
   calledPeerId: string;
   webrtcData: RTCSessionDescriptionInit | RTCIceCandidate;
+  recipient:string;
 };
 
 type DialParams = AppParams;
@@ -216,9 +219,9 @@ export class Waku {
         return;
       }
 
-      if (data.callerPeerId === this.node.peerId.toString()) {
-        logger.info("onMessage: received message from myself");
-        return;
+      if (data.recipient !== this.node.peerId.toString()) {
+          logger.info("onMessage: ignoring as i am not intended recipient", data.recipient  , this.node.peerId.toString());
+          return;
       }
 
       logger.info("onMessage: dispatching received message");
@@ -239,7 +242,6 @@ export class Waku {
     const response = await this.node.lightPush.send(this.encoder, {
       payload: utf8ToBytes(payload),
     });
-
     logger.info(`Waku: sendWakuMessage of type:${message.messageType},  response:${response}, payload:${payload}`);
   }
 }

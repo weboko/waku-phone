@@ -80,8 +80,15 @@ export class Phone {
           callerPeerId,
           calledPeerId,
           webrtcData: event.candidate,
+          recipient: calledPeerId,
         });
       },
+    });
+    await this.waku.sendDialMessage({
+      callId:callId,
+      callerPeerId:callerPeerId,
+      calledPeerId:calledPeerId,
+      recipient: calledPeerId,
     });
   }
 
@@ -98,6 +105,7 @@ export class Phone {
   private async onSystemMessage(event: CustomEvent<WakuPhoneMessage>): Promise<void> {
     const message = event.detail;
 
+    console.log("onSystemMessage: received message:", message);
     if (message.messageType === WakuPhoneMessageType.DIAL) {
       await this.handleDialMessage(message);
       return;
@@ -143,6 +151,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
+        recipient: this.getRecepient(message),
       });
       return;
     }
@@ -165,6 +174,7 @@ export class Phone {
           callerPeerId: message.callerPeerId!,
           calledPeerId: message.calledPeerId!,
           webrtcData: event.candidate,
+          recipient: this.getRecepient(message),
         });
       },
     });
@@ -176,6 +186,7 @@ export class Phone {
       callerPeerId: message.callerPeerId!,
       calledPeerId: message.calledPeerId!,
       webrtcData: offer,
+      recipient: this.getRecepient(message),
     });
   }
 
@@ -191,6 +202,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
+        recipient: this.getRecepient(message),
       });
       return;
     }
@@ -201,7 +213,8 @@ export class Phone {
       callId: message.callId,
       calledPeerId: message.calledPeerId!,
       callerPeerId: message.callerPeerId!,
-      webrtcData: answer
+      webrtcData: answer,
+      recipient: this.getRecepient(message),
     });
   }
 
@@ -241,6 +254,7 @@ export class Phone {
         callId: message.callId,
         calledPeerId: message.calledPeerId!,
         callerPeerId: message.callerPeerId!,
+        recipient: this.getRecepient(message),
       });
       return;
     }
@@ -274,6 +288,16 @@ export class Phone {
   private handleCallStateChange(event: CustomEvent<CallState>): void {
     if (event.detail === CallState.RINGING) {
       this.audioSignal.playSignal(SignalType.RINGING);
+    }else if (event.detail === CallState.IN_CALL) {
+      this.audioSignal.stopSignal();
+    }
+  }
+
+  private getRecepient(message: WakuPhoneMessage):string {
+    if (this.call?.isOriginator()){
+      return message.calledPeerId!;
+    }else{
+      return message.callerPeerId!;
     }
   }
 }

@@ -18,10 +18,10 @@
       // @ts-ignore
       window.waku = waku["node"];
       localPeerId = waku.peerId.toString();
-      
+      wakuConnected = waku["node"].isConnected();
       await waku.start();
 
-      phone = new Phone({ waku, localAudio, remoteAudio, systemAudio });
+      phone = new Phone({ waku, systemAudio, localAudio, remoteAudio});
       await phone.start();
     }
 
