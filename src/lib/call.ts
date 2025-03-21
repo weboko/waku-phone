@@ -31,16 +31,20 @@ const DEFAULT_STUN = "stun:stun.l.google.com:19302";
 
 export class Call {
   private readonly role: Role;
-  private readonly calledId: string;
-  private readonly callerId: string;
+  public readonly callId: string;
+  public readonly calledId: string;
+  public readonly callerId: string;
   private readonly events: EventTarget;
   private readonly mediaStreams: MediaStreams;
   private readonly handleIceCandidates: HandleIceCandidatesCallback;
 
   private rtcConnection: RTCPeerConnection;
+  private outboundChannel: RTCDataChannel;
+  private inboundChannel?: RTCDataChannel;
 
   constructor(params: CallParams) {
     this.role = params.role;
+    this.callId = params.callId;
     this.calledId = params.calledId;
     this.callerId = params.callerId;
     this.events = params.events;
@@ -49,16 +53,28 @@ export class Call {
     this.rtcConnection = new RTCPeerConnection({
       iceServers: [{ urls: DEFAULT_STUN }],
     });
-
-    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
+    this.outboundChannel = this.rtcConnection.createDataChannel("outbound");
 
     this.onStateChange = this.onStateChange.bind(this);
 
+    this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
+
+
+    // DO NOT REMOVE IT!!!!!!!!!!
+    this.rtcConnection.addEventListener("datachannel", (event) => {
+      this.inboundChannel = event.channel;
+      this.inboundChannel.addEventListener("message", (event) => {
+        console.log("Received message:", event.data);
+      });
+    });
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
     this.rtcConnection.addEventListener("icecandidate", this.handleIceCandidates);
 
-    this.mediaStreams.setupLocalStream();
-    this.mediaStreams.setupRemoteStream();
+  } 
+
+  public async start(): Promise<void> {
+    await this.mediaStreams.setupLocalStream();
+    await this.mediaStreams.setupRemoteStream();
   }
 
   public isForWakuMessage(message: WakuPhoneMessage): boolean {
@@ -70,6 +86,7 @@ export class Call {
       return;
     }
 
+    this.outboundChannel.close();
     this.rtcConnection.removeEventListener("icecandidate", this.handleIceCandidates);
     this.rtcConnection.close();
 

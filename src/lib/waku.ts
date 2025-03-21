@@ -102,6 +102,7 @@ export class Waku {
     });
     await node.start()
     await node.dial("/dns4/waku-test.bloxy.one/tcp/8095/wss/p2p/16Uiu2HAmSZbDB7CusdRhgkD81VssRjQV5ZH13FbzCGcdnbbh6VwZ");
+    // await node.dial("/dns4/vps-aaa00d52.vps.ovh.ca/tcp/8000/wss/p2p/16Uiu2HAm9PftGgHZwWE3wzdMde4m3kT2eYJFXLZfGoSED3gysofk");
 
     return node;
   }
@@ -214,6 +215,8 @@ export class Waku {
       const payload = bytesToUtf8(message.payload);
       const data: WakuPhoneMessage = JSON.parse(payload);
 
+      console.log("DEBUG: onMessage:", data);
+
       if (!data.messageType || !data.calledPeerId || !data.callerPeerId) {
         logger.warn("onMessage: wrong shape of payload", payload);
         return;
@@ -242,6 +245,6 @@ export class Waku {
     const response = await this.node.lightPush.send(this.encoder, {
       payload: utf8ToBytes(payload),
     });
-    logger.info(`Waku: sendWakuMessage of type:${message.messageType},  response:${response}, payload:${payload}`);
+    logger.info(`Waku: sendWakuMessage of type:${message.messageType},  response:${JSON.stringify(response)}, payload:${payload}`);
   }
 }

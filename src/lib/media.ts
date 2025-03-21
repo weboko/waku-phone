@@ -16,14 +16,17 @@ export class MediaStreams {
     }
 
     public async setupLocalStream(): Promise<void> {
-        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         this.localAudioElement.srcObject = this.localStream;
-        //@ts-ignore
-        this.localStream.getAudioTracks().forEach(track =>  this.rtcConnection.addTrack(track, this.localStream));
+        this.localStream.getAudioTracks().forEach(track => {
+            console.log("DEBUG: getAudioTracks localStream", track);
+            this.rtcConnection.addTrack(track, this.localStream!);
+        });
     }
 
     public async setupRemoteStream(): Promise<void> {
         this.rtcConnection.addEventListener("track", e => {
+            console.log("DEBUG: setupRemoteStream track", e);
             this.remoteAudioElement.srcObject = e.streams[0];
           });
     }
