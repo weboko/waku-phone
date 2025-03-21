@@ -8,6 +8,7 @@
   import { tick } from "svelte";
   import { Local } from "$lib/local-storage";
   import { getPeerIdFromPhoneNumber } from "$lib/utils";
+  import IncomingCallPopup from './incoming-call/IncomingCallPopUp.svelte';
 
   let inputValue = '';
   let localStream: MediaStream;
@@ -22,6 +23,8 @@
   let useNumpad = true;
   let numpadInput = '';
   let calledPartyPeerId = '';
+  let incomingCall = false;
+  let callerPeerId = 'QmExampleCallerPeerId';
 
   onMount(async () => {
     const node = await Waku.get();
@@ -82,17 +85,12 @@
 
   function handleNumpadInput(digit: string) {
     numpadInput += digit;
-    inputValue = mapNumpadToPeerId(numpadInput);
+    inputValue = numpadInput;
   }
 
   function clearNumpadInput() {
     numpadInput = '';
     inputValue = '';
-  }
-
-  function mapNumpadToPeerId(numpadInput: string): string {
-    // TODO: Stubbed mapping function
-    return numpadInput;
   }
 
   function hangUpCall() {
@@ -117,6 +115,22 @@
     callActive = false;
     clearInterval(callTimer);
     callDuration = 0;
+  }
+
+  function handleIncomingCall() {
+    incomingCall = true;
+  }
+
+  function acceptCall() {
+    console.log('Call accepted');
+    incomingCall = false;
+    // Add logic to handle accepting the call
+  }
+
+  function rejectCall() {
+    console.log('Call rejected');
+    incomingCall = false;
+    // Add logic to handle rejecting the call
   }
 </script>
   
@@ -149,6 +163,9 @@
   <button onclick={hangUpCall} disabled={!callActive} class="hangup-button">
     <i class="fas fa-phone-slash"></i>
   </button>
+  <button onclick={handleIncomingCall} class="simulate-button">
+    Simulate Incoming Call
+  </button>
 </div>
 {#if useNumpad}
   <div class="numpad-input-box">
@@ -171,6 +188,14 @@
       oninput={handleInput}
     />
   </div>
+{/if}
+
+{#if incomingCall}
+  <IncomingCallPopup 
+    callerPeerId={callerPeerId} 
+    onAccept={acceptCall} 
+    onReject={rejectCall} 
+  />
 {/if}
 
 <style>
@@ -291,5 +316,18 @@
     margin-bottom: 1rem;
     height: 100%;
     width: 100%;
+  }
+
+  .simulate-button {
+    font-size: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    background-color: #3d71d1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    height: 2.5rem;
+    width: 15rem;
   }
 </style>
