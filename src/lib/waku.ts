@@ -91,11 +91,11 @@ export class Waku {
     const identity = await Local.getIdentity();
     
     const node = await createLightNode({
-      defaultBootstrap: true,
-      // networkConfig: {
-      //   clusterId: 42,
-      //   shards: [0]
-      // },
+      defaultBootstrap: false,
+      networkConfig: {
+        clusterId: 42,
+        shards: [0]
+      },
       libp2p: {
         privateKey: identity,
       }
@@ -120,13 +120,13 @@ export class Waku {
 
     this.encoder = createEncoder({
       contentTopic: DEFAULT_CONTENT_TOPIC,
-      // pubsubTopicShardInfo: {
-      //   clusterId: 42,
-      //   shard: 0
-      // }
+      pubsubTopicShardInfo: {
+        clusterId: 42,
+        shard: 0
+      }
     });
 
-    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC/*, { clusterId: 42 , shard: 0}*/);
+    this.decoder = createDecoder(DEFAULT_CONTENT_TOPIC, { clusterId: 42 , shard: 0});
   }
 
   public get peerId(): string {
@@ -244,6 +244,6 @@ export class Waku {
     const response = await this.node.lightPush.send(this.encoder, {
       payload: utf8ToBytes(payload),
     });
-    logger.info(`Waku: sendWakuMessage of type:${message.messageType},  response:${response}, payload:${payload}`);
+    logger.info(`Waku: sendWakuMessage of type:${message.messageType},  response:${JSON.stringify(response)}, payload:${payload}`);
   }
 }
