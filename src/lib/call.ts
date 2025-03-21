@@ -52,20 +52,16 @@ export class Call {
     });
     this.outboundChannel = this.rtcConnection.createDataChannel("outbound");
 
-    console.log("DEBUG: before constructor");
+    this.onStateChange = this.onStateChange.bind(this);
+
+    // DO NOT REMOVE IT!!!!!!!!!!
     this.rtcConnection.addEventListener("datachannel", (event) => {
-      console.log("DEBUG: datachannel", event);
+      this.outboundChannel = event.channel;
     });
     this.rtcConnection.addEventListener("connectionstatechange", this.onStateChange);
-    this.rtcConnection.addEventListener("icecandidate", (event) => {
-      console.log("DEBUG: icecandidate", event);
-      this.handleIceCandidates(event);
-    });
-    console.log("DEBUG: after constructor");
+    this.rtcConnection.addEventListener("icecandidate", this.handleIceCandidates);
 
     this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
-
-    this.onStateChange = this.onStateChange.bind(this);
 
     this.mediaStreams.setupLocalStream();
     this.mediaStreams.setupRemoteStream();
@@ -76,11 +72,11 @@ export class Call {
   }
 
   public async stop(): Promise<void> {
-    console.log("DEBUG: CALL STOP CALLED");
     if (!this.rtcConnection) {
       return;
     }
 
+    this.outboundChannel.close();
     this.rtcConnection.removeEventListener("icecandidate", this.handleIceCandidates);
     this.rtcConnection.close();
 
