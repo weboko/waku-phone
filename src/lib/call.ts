@@ -56,8 +56,7 @@ export class Call {
     this.onStateChange = this.onStateChange.bind(this);
 
     this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
-    this.mediaStreams.setupRemoteStream();
-    this.mediaStreams.setupLocalStream();
+
 
     // DO NOT REMOVE IT!!!!!!!!!!
     this.rtcConnection.addEventListener("datachannel", (event) => {
@@ -70,6 +69,11 @@ export class Call {
     this.rtcConnection.addEventListener("icecandidate", this.handleIceCandidates);
 
   } 
+
+  public async start(): Promise<void> {
+    await this.mediaStreams.setupLocalStream();
+    await this.mediaStreams.setupRemoteStream();
+  }
 
   public isForWakuMessage(message: WakuPhoneMessage): boolean {
     return message?.calledPeerId === this.calledId && message.callerPeerId === this.callerId;

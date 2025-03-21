@@ -87,6 +87,7 @@ export class Phone {
           });
         }).bind(this)
       });
+    await this.call.start();
     await this.waku.sendDialMessage({
       callId:callId,
       callerPeerId:callerPeerId,
@@ -183,6 +184,7 @@ export class Phone {
         });
       }).bind(this),
     });
+    await this.call.start();
 
     const offer = await this.call.prepareOffer();
 
