@@ -214,6 +214,8 @@ export class Waku {
       const payload = bytesToUtf8(message.payload);
       const data: WakuPhoneMessage = JSON.parse(payload);
 
+      console.log("DEBUG: onMessage:", data);
+
       if (!data.messageType || !data.calledPeerId || !data.callerPeerId) {
         logger.warn("onMessage: wrong shape of payload", payload);
         return;
