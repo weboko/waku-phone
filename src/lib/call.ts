@@ -59,7 +59,6 @@ export class Call {
 
     this.mediaStreams = new MediaStreams(params.localAudio, params.remoteAudio, this.rtcConnection);
 
-
     // DO NOT REMOVE IT!!!!!!!!!!
     this.rtcConnection.addEventListener("datachannel", (event) => {
       this.inboundChannel = event.channel;
