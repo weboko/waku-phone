@@ -19,9 +19,9 @@
   let incomingCall = false;
   let callerPeerId = "";
 
-  let localAudio = new Audio();
-  let systemAudio = new Audio();
-  let remoteAudio = new Audio();
+  let localAudio: HTMLAudioElement;
+  let systemAudio: HTMLAudioElement;
+  let remoteAudio: HTMLAudioElement;
 
   function handleKeydown(event: KeyboardEvent) {
     if (callActive) return;
@@ -45,6 +45,10 @@
     localPhoneNumber = Local.getPhoneNumber();
     console.log("Local peer ID:", localPeerId);
     console.log("Local phone number:", localPhoneNumber);
+
+    systemAudio = document.createElement("audio");
+    localAudio = document.createElement("audio");
+    remoteAudio = document.createElement("audio");
 
     phone = new Phone({
       waku: node,
