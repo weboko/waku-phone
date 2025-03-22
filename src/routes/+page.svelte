@@ -61,7 +61,7 @@
   async function makeCall() {
     console.log('makeCall function triggered');
     if (!inputValue) {
-      warningMessage = 'Please input peer ID you want to call';
+      warningMessage = 'Please input peer ID/phone number you want to call';
       console.warn(warningMessage);
       return;
     }
