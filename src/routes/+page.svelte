@@ -46,9 +46,22 @@
     console.log("Local peer ID:", localPeerId);
     console.log("Local phone number:", localPhoneNumber);
 
+    // Create audio elements and add them to the DOM with proper attributes
     systemAudio = document.createElement("audio");
+    systemAudio.id = "system-audio";
+    
     localAudio = document.createElement("audio");
+    localAudio.id = "local-audio";
+    
     remoteAudio = document.createElement("audio");
+    remoteAudio.id = "remote-audio";
+    remoteAudio.autoplay = true;
+    remoteAudio.playsInline = true;
+    
+    // Append to document body but hide them
+    document.body.appendChild(systemAudio);
+    document.body.appendChild(localAudio);
+    document.body.appendChild(remoteAudio);
 
     phone = new Phone({
       waku: node,
@@ -117,13 +130,27 @@
       tick();
     }, 1000);
 
-    remoteAudio.autoplay = true;
+    // Ensure remote audio is properly configured
+    if (remoteAudio) {
+      remoteAudio.autoplay = true;
+      remoteAudio.volume = 1.0;
+      
+      // Try to ensure audio starts playing
+      remoteAudio.play().catch(err => {
+        console.warn("Could not auto-play remote audio:", err);
+      });
+    }
   }
 
   function endCall() {
     callActive = false;
     clearInterval(callTimer);
     callDuration = 0;
+    
+    // Reset audio elements when call ends
+    if (remoteAudio) {
+      remoteAudio.srcObject = null;
+    }
   }
 
   function handleIncomingCall(event: CustomEvent) {
@@ -134,6 +161,13 @@
   function answerCall() {
     console.log("Call answered");
     incomingCall = false;
+    
+    // Make sure remote audio is ready before answering
+    if (remoteAudio) {
+      remoteAudio.autoplay = true;
+      remoteAudio.playsInline = true;
+    }
+    
     phone.answerCall();
     startCall();
   }
@@ -551,5 +585,10 @@
     .phone-container {
       border-radius: 0;
     }
+  }
+
+  /* Hide audio elements but keep them in the DOM */
+  :global(#system-audio, #local-audio, #remote-audio) {
+    display: none;
   }
 </style>
