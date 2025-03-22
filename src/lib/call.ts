@@ -105,11 +105,13 @@ export class Call {
     return offer;
   }
 
-  public async prepareAnswer(offer: object): Promise<RTCSessionDescriptionInit> {
+  public async setRemoteDescription(offer: object): Promise<void> {
     await this.rtcConnection.setRemoteDescription(
       new RTCSessionDescription(offer as RTCSessionDescriptionInit)
     );
+  }
 
+  public async prepareAnswer(): Promise<RTCSessionDescriptionInit> {
     const answer = await this.rtcConnection.createAnswer();
     this.rtcConnection.setLocalDescription(answer);
 

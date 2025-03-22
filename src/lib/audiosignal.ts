@@ -1,12 +1,12 @@
-
+import { base } from '$app/paths';
 
 export enum SignalType {  
     BUSY,
     RINGING,
     //CALL_CONNECTING,
 }
-const busyAudioResource:string = '/busy.mp3';
-const ringingAudioResource:string = '/ringing.mp3';
+const busyAudioResource:string = `${base}/busy.mp3`;
+const ringingAudioResource:string = `${base}/ringing.mp3`;
 //const connectingAudioResource:string = '/connecting.mp3';
 
 export class AudioSignal{

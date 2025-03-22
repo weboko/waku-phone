@@ -9,18 +9,24 @@ export class Local {
   public static LOCAL_ID_KEY = "local-id";
 
   public static async getIdentity(): Promise<Ed25519PrivateKey> {
-    // Generate a new random 6-digit phone number
-    const phoneNumber = generateRandomPhoneNumber();
+    const phoneNumber = Local.getPhoneNumber();
 
-    // Hash the phone number to get a 32-byte seed
     const hash = await sha256(phoneNumber);
-    const seed = hash.slice(0, 64); // Take the first 64 characters (32 bytes)
+    const seed = hash.slice(0, 64);
 
-    // Store the phone number in localStorage
     localStorage.setItem(this.LOCAL_ID_KEY, phoneNumber);
 
-    // Generate the key pair from the new seed
     return await generateKeyPairFromSeed("Ed25519", hexToBytes(seed));
+  }
+
+  public static getPhoneNumber(): string {
+    let phoneNumber = localStorage.getItem(this.LOCAL_ID_KEY);
+
+    if (!phoneNumber) {
+      phoneNumber = generateRandomPhoneNumber();
+    }
+
+    return phoneNumber;
   }
 
   public static setDebug(): void {

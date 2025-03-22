@@ -1,105 +1,109 @@
-<svelte:head>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-</svelte:head>
-
 <script lang="ts">
-  import { Waku, WakuRTC } from "$lib";
+  import { Waku } from "$lib";
   import { onMount } from "svelte";
   import { tick } from "svelte";
   import { Local } from "$lib/local-storage";
   import { getPeerIdFromPhoneNumber } from "$lib/utils";
-  import IncomingCallPopup from './incoming-call/IncomingCallPopUp.svelte';
+  import IncomingCallPopup from "./incoming-call/IncomingCallPopUp.svelte";
+  import { Phone } from "$lib/phone";
 
-  let inputValue = '';
-  let localStream: MediaStream;
-  let localPeerId = '';
-  let localPhoneNumber = '';
-  let wakuRtc: WakuRTC;
+  let inputValue = "";
+  let localPeerId = "";
+  let localPhoneNumber = "";
+  let phone: Phone;
   let callActive = false;
   let callDuration = 0;
   let callTimer: ReturnType<typeof setTimeout>;
-  let warningMessage = '';
-  let audioContext: AudioContext;
-  let useNumpad = true;
-  let numpadInput = '';
-  let calledPartyPeerId = '';
+  let warningMessage = "";
+  let calledPartyPeerId = "";
   let incomingCall = false;
-  let callerPeerId = 'QmExampleCallerPeerId';
+  let callerPeerId = "QmExampleCallerPeerId";
+  let remoteAudio: HTMLAudioElement;
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (callActive) return;
+
+    if (/^[0-9]$/.test(event.key)) {
+      inputValue += event.key;
+    } else if (event.key === "Backspace") {
+      inputValue = inputValue.slice(0, -1);
+    } else if (event.key === "Enter") {
+      makeCall();
+    } else if (event.key === "Escape") {
+      clearInput();
+    }
+  }
 
   onMount(async () => {
+    window.addEventListener("keydown", handleKeydown);
+
     const node = await Waku.get();
     localPeerId = node.peerId.toString();
-    localPhoneNumber = localStorage.getItem(Local.LOCAL_ID_KEY) || ''; // Retrieve phone number from localStorage
-    console.log('Local peer ID:', localPeerId);
-    console.log('Local phone number:', localPhoneNumber); // Log phone number
+    localPhoneNumber = Local.getPhoneNumber();
+    console.log("Local peer ID:", localPeerId);
+    console.log("Local phone number:", localPhoneNumber);
 
-    // TODO: this should interface with Waku Phone Call not WakuRTC directly
-    wakuRtc = new WakuRTC({ node });
-    await wakuRtc.start();
+    const systemAudio = new Audio();
+    const localAudio = new Audio();
+    remoteAudio = new Audio();
 
-    window.addEventListener('beforeunload', () => {
-      if (wakuRtc.rtcConnection) {
-        console.log('Closing RTC connection before window unload');
-        wakuRtc.rtcConnection.close();
-      }
+    phone = new Phone({
+      waku: node,
+      systemAudio,
+      localAudio,
+      remoteAudio,
     });
 
-    audioContext = new AudioContext();
+    await node.start();
+    await phone.start();
+
+    phone.events.addEventListener("incomingCall", handleIncomingCall as any);
+    phone.events.addEventListener("hangup", endCall);
+
+    window.addEventListener("beforeunload", async () => {
+      await node.stop();
+      await phone.stop();
+    });
+
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+    };
   });
 
   async function makeCall() {
-    console.log('makeCall function triggered');
+    console.log("makeCall function triggered");
     if (!inputValue) {
-      warningMessage = 'Please input peer ID you want to call';
+      warningMessage = "Please enter a phone number";
       console.warn(warningMessage);
       return;
     }
-    warningMessage = '';
-    console.log('Input value:', inputValue);
+    warningMessage = "";
+    console.log("Input value:", inputValue);
     try {
-      if (useNumpad) {
-        calledPartyPeerId = await getPeerIdFromPhoneNumber(inputValue);
-      } else {
-        calledPartyPeerId = inputValue;
-      }
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      localStream.getAudioTracks().forEach(track => wakuRtc.rtcConnection.addTrack(track, localStream));
-
-      wakuRtc.rtcConnection.addEventListener("track", e => {
-        console.log("ontrack", e);
-        const remoteStream = e.streams[0];
-        const remoteAudioSource = audioContext.createMediaStreamSource(remoteStream);
-        remoteAudioSource.connect(audioContext.destination);
-      });
-
-      await wakuRtc.initiateConnection(calledPartyPeerId);
+      calledPartyPeerId = await getPeerIdFromPhoneNumber(inputValue);
+      await phone.dial(calledPartyPeerId);
       startCall();
     } catch (error) {
-      console.error('Error in makeCall:', error);
+      console.error("Error in makeCall:", error);
     }
-  }
-
-  function handleInput(event: Event) {
-    inputValue = (event.target as HTMLInputElement).value;
   }
 
   function handleNumpadInput(digit: string) {
-    numpadInput += digit;
-    inputValue = numpadInput;
+    if (callActive) return;
+    inputValue += digit;
   }
 
-  function clearNumpadInput() {
-    numpadInput = '';
-    inputValue = '';
+  function clearInput() {
+    inputValue = "";
   }
 
-  function hangUpCall() {
-    console.log('hangUpCall function triggered');
-    if (localStream) {
-      console.log('Stopping local audio tracks');
-      localStream.getAudioTracks().forEach(track => track.stop());
-    }
-    endCall();
+  function backspace() {
+    inputValue = inputValue.slice(0, -1);
+  }
+
+  async function hangUpCall() {
+    console.log("hangUpCall function triggered");
+    await phone.hangup();
   }
 
   function startCall() {
@@ -109,6 +113,8 @@
       callDuration++;
       tick();
     }, 1000);
+
+    remoteAudio.autoplay = true;
   }
 
   function endCall() {
@@ -117,217 +123,430 @@
     callDuration = 0;
   }
 
-  function handleIncomingCall() {
+  function handleIncomingCall(event: CustomEvent) {
+    callerPeerId = event.detail?.callerPhoneNumber || "unknown";
     incomingCall = true;
   }
 
-  function acceptCall() {
-    console.log('Call accepted');
+  function answerCall() {
+    console.log("Call answered");
     incomingCall = false;
-    // Add logic to handle accepting the call
+    phone.answerCall();
+    startCall();
   }
 
   function rejectCall() {
-    console.log('Call rejected');
+    console.log("Call rejected");
     incomingCall = false;
-    // Add logic to handle rejecting the call
+    phone.rejectCall();
+    endCall();
   }
 </script>
-  
-<h1>Waku Phone</h1>
-<p>Local peer ID: {localPeerId}</p>
-<p>Local phone number: {localPhoneNumber}</p>
-<div class="form-group">
-  <label for="toggle-input">Use Numpad:</label>
-  <input 
-    id="toggle-input"
-    type="checkbox" 
-    bind:checked={useNumpad}
+
+<svelte:head>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
   />
+</svelte:head>
+
+<div class="phone-container">
+  <div class="status-bar">
+    <p class="phone-id">{localPhoneNumber || "No Number"}</p>
+  </div>
+
+  {#if callActive}
+    <div class="call-screen">
+      <div class="call-info">
+        <span class="call-indicator"></span>
+        <p class="call-status-text">Call in progress</p>
+        <p class="call-duration">
+          {Math.floor(callDuration / 60)}:{(callDuration % 60)
+            .toString()
+            .padStart(2, "0")}
+        </p>
+        <p class="calling-number">{inputValue}</p>
+      </div>
+      <button class="hangup-button" on:click={hangUpCall} aria-label="End call">
+        <i class="fas fa-phone-slash"></i>
+      </button>
+    </div>
+  {:else}
+    <div class="dialer">
+      <div class="number-display">
+        <span class="phone-number">{inputValue}</span>
+        {#if inputValue}
+          <button class="backspace-button" on:click={backspace} aria-label="Delete last digit">
+            <i class="fas fa-backspace"></i>
+          </button>
+        {/if}
+      </div>
+
+      <div class="numpad">
+        {#each ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as digit}
+          <button
+            class="numpad-button"
+            on:click={() => handleNumpadInput(digit)}
+          >
+            <span class="digit">{digit}</span>
+          </button>
+        {/each}
+      </div>
+
+      <div class="action-buttons">
+        <button
+          class="clear-button"
+          on:click={clearInput}
+          disabled={!inputValue}
+          aria-label="Clear number"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+        <button 
+          class="call-button" 
+          on:click={makeCall} 
+          disabled={!inputValue}
+          aria-label="Make call"
+        >
+          <i class="fas fa-phone"></i>
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if warningMessage}
+    <div class="warning-banner">
+      <p class="warning">{warningMessage}</p>
+    </div>
+  {/if}
 </div>
-{#if callActive}
-  <div class="call-status">
-    <span class="indicator"></span>
-    <span>Call in progress...</span>
-    <span>Duration: {Math.floor(callDuration / 60)}:{callDuration % 60}</span>
-    <span>Calling peer ID: {calledPartyPeerId}</span>
-  </div>
-{/if}
-{#if warningMessage}
-  <p class="warning">{warningMessage}</p>
-{/if}
-<div class="button-group">
-  <button onclick={makeCall} disabled={callActive} class="call-button">
-    <i class="fas fa-phone"></i>
-  </button>
-  <button onclick={hangUpCall} disabled={!callActive} class="hangup-button">
-    <i class="fas fa-phone-slash"></i>
-  </button>
-  <button onclick={handleIncomingCall} class="simulate-button">
-    Simulate Incoming Call
-  </button>
-</div>
-{#if useNumpad}
-  <div class="numpad-input-box">
-    <p class="numpad-input">{numpadInput}</p>
-  </div>
-  <div class="numpad">
-    {#each ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'] as digit}
-      <button onclick={() => handleNumpadInput(digit)}>{digit}</button>
-    {/each}
-    <button onclick={clearNumpadInput} style="margin-bottom: 1rem;">Clear</button>
-  </div>
-{:else}
-  <div class="form-group">
-    <label for="string-input">Enter peer ID to call:</label>
-    <input 
-      id="string-input"
-      type="text" 
-      bind:value={inputValue}
-      placeholder="Enter peer ID..." 
-      oninput={handleInput}
-    />
-  </div>
-{/if}
 
 {#if incomingCall}
-  <IncomingCallPopup 
-    callerPeerId={callerPeerId} 
-    onAccept={acceptCall} 
-    onReject={rejectCall} 
+  <IncomingCallPopup
+    {callerPeerId}
+    onAccept={answerCall}
+    onReject={rejectCall}
   />
 {/if}
 
 <style>
-  .button-group {
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background-color: #f5f5f5;
     display: flex;
-    gap: 1rem;
-  }
-
-  .call-button {
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    height: 2.5rem;
-    width: 6.5rem;
-  }
-
-  .hangup-button {
-    font-size: 1.5rem;
     align-items: center;
-    justify-content: center;
-    background-color: red;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    height: 2.5rem;
-    width: 6.5rem;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
   }
 
-  .call-button:disabled, .hangup-button:disabled {
-    background-color: grey;
-    cursor: not-allowed;
-  }
-
-  .call-button:hover {
-    background-color: #45a049;
-  }
-
-  .hangup-button:hover {
-    background-color: darkred;
-  }
-
-  .form-group {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .label {
-    font-weight: bold;
-  }
-
-  .call-status {
+  .phone-container {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    height: 100%;
+    max-height: 640px;
+    background-color: white;
+    border-radius: 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    overflow: hidden;
+    padding-bottom: 8px;
   }
 
-  .indicator {
-    width: 10px;
-    height: 10px;
-    background-color: red;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-  }
-
-  .warning {
-    color: red;
-    font-weight: bold;
-  }
-
-  .numpad-input-box {
-    border: 1px solid #ccc;
-    padding: 0.5rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+  .status-bar {
+    padding: 8px 16px;
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #eaeaea;
     text-align: center;
-    width: 13rem; 
-    height: 4rem;
+  }
+
+  .phone-id {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+  }
+
+  .dialer {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 12px;
+    justify-content: space-between;
+  }
+
+  .number-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 16px;
+    position: relative;
+    min-height: 40px;
+  }
+
+  .phone-number {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  .backspace-button {
+    position: absolute;
+    right: 0;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #666;
+    cursor: pointer;
+    padding: 8px;
   }
 
   .numpad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-    width: 200px; 
-    height: 300px; 
+    gap: 10px;
+    margin-top: 8px;
+    flex: 0 1 auto;
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 320px;
+    grid-template-areas:
+      "a b c"
+      "d e f"
+      "g h i"
+      ". j .";
   }
 
-  .numpad button {
-    font-size: 1.5rem;
-    aspect-ratio: 1 / 1; /* Makes the buttons square */
+  .numpad-button {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: #3d71d1;
-    color: white;
+    background-color: #f2f2f2;
     border: none;
-    border-radius: 4px;
+    border-radius: 50%;
+    aspect-ratio: 1;
     cursor: pointer;
-  }
-
-  .numpad button:hover {
-    background-color: #45a049;
-  }
-
-  .numpad-input {
-    font-size: 1.5rem;
-    font-weight: bold;
+    padding: 0;
+    transition: background-color 0.2s;
+    min-height: 85px;
+    max-height: 85px;
     text-align: center;
-    margin-bottom: 1rem;
-    height: 100%;
+    margin: 0 auto;
     width: 100%;
   }
 
-  .simulate-button {
-    font-size: 1.5rem;
+  .numpad-button:nth-child(10) {
+    grid-area: j;
+  }
+
+  .numpad-button:hover,
+  .numpad-button:active {
+    background-color: #e0e0e0;
+  }
+
+  .digit {
+    font-size: 24px;
+    font-weight: 400;
+    color: #333;
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    gap: 20px;
+  }
+
+  .call-button,
+  .hangup-button,
+  .clear-button {
+    display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #3d71d1;
-    color: white;
+    width: 85px;
+    height: 85px;
     border: none;
-    border-radius: 4px;
+    border-radius: 50%;
+    font-size: 22px;
+    color: white;
     cursor: pointer;
-    height: 2.5rem;
-    width: 15rem;
+    transition: all 0.2s;
+  }
+
+  .call-button {
+    background-color: #4caf50;
+  }
+
+  .call-button:hover:not(:disabled) {
+    background-color: #45a049;
+    transform: scale(1.05);
+  }
+
+  .clear-button {
+    background-color: #f44336;
+  }
+
+  .clear-button:hover:not(:disabled) {
+    background-color: #e53935;
+    transform: scale(1.05);
+  }
+
+  .hangup-button {
+    background-color: #f44336;
+    margin: 0 auto;
+  }
+
+  .hangup-button:hover {
+    background-color: #e53935;
+    transform: scale(1.05);
+  }
+
+  .call-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    padding: 40px 16px;
+  }
+
+  .call-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 40px;
+  }
+
+  .call-indicator {
+    width: 16px;
+    height: 16px;
+    background-color: #4caf50;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+
+  .call-status-text {
+    font-size: 20px;
+    font-weight: 500;
+    margin: 16px 0 8px;
+  }
+
+  .call-duration {
+    font-size: 18px;
+    color: #666;
+    margin: 0 0 24px;
+  }
+
+  .calling-number {
+    font-size: 24px;
+    font-weight: 300;
+  }
+
+  .warning-banner {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    background-color: rgba(244, 67, 54, 0.9);
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .warning {
+    color: white;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .call-button:disabled,
+  .clear-button:disabled {
+    background-color: #bdbdbd;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+  }
+
+  @media (max-height: 640px) {
+    .numpad {
+      gap: 8px;
+    }
+
+    .digit {
+      font-size: 20px;
+    }
+    
+    .call-button,
+    .hangup-button,
+    .clear-button {
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+    }
+
+    .number-display {
+      padding: 6px 0 10px;
+    }
+
+    .phone-number {
+      font-size: 26px;
+    }
+
+    .action-buttons {
+      margin-top: 10px;
+    }
+  }
+
+  @media (max-height: 568px) {
+    .status-bar {
+      padding: 4px 8px;
+    }
+
+    .numpad {
+      gap: 6px;
+    }
+
+    .digit {
+      font-size: 18px;
+    }
+    
+    .call-button,
+    .hangup-button,
+    .clear-button {
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+    }
+
+    .dialer {
+      padding: 8px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .phone-container {
+      border-radius: 0;
+    }
   }
 </style>

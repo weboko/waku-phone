@@ -34,7 +34,8 @@ export type WakuPhoneMessage = {
   calledPeerId?: string;
   calledDisplayName?: string;
   webrtcData?: object;
-  recipient?:string;
+  recipient?: string;
+  callerPhoneNumber?: string;
 };
 
 type AppParams = {
@@ -49,13 +50,14 @@ type WebRTCParams = {
   callerPeerId: string;
   calledPeerId: string;
   webrtcData: RTCSessionDescriptionInit | RTCIceCandidate;
-  recipient:string;
+  recipient: string;
+  callerPhoneNumber?: string;
 };
 
-type DialParams = AppParams;
+type DialParams = WebRTCParams;
 
 // includes WebRTC offer
-type RingingParams = WebRTCParams;
+type RingingParams = AppParams;
 
 // includes WebRTC answer
 type AnswerParams = WebRTCParams;
@@ -102,7 +104,7 @@ export class Waku {
     });
     await node.start()
     await node.dial("/dns4/waku-test.bloxy.one/tcp/8095/wss/p2p/16Uiu2HAmSZbDB7CusdRhgkD81VssRjQV5ZH13FbzCGcdnbbh6VwZ");
-    // await node.dial("/dns4/vps-aaa00d52.vps.ovh.ca/tcp/8000/wss/p2p/16Uiu2HAm9PftGgHZwWE3wzdMde4m3kT2eYJFXLZfGoSED3gysofk");
+    await node.dial("/dns4/vps-aaa00d52.vps.ovh.ca/tcp/8000/wss/p2p/16Uiu2HAm9PftGgHZwWE3wzdMde4m3kT2eYJFXLZfGoSED3gysofk");
 
     return node;
   }
