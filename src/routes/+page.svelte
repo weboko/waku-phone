@@ -17,8 +17,11 @@
   let warningMessage = "";
   let calledPartyPeerId = "";
   let incomingCall = false;
-  let callerPeerId = "QmExampleCallerPeerId";
-  let remoteAudio: HTMLAudioElement;
+  let callerPeerId = "";
+
+  let localAudio = new Audio();
+  let systemAudio = new Audio();
+  let remoteAudio = new Audio();
 
   function handleKeydown(event: KeyboardEvent) {
     if (callActive) return;
@@ -42,10 +45,6 @@
     localPhoneNumber = Local.getPhoneNumber();
     console.log("Local peer ID:", localPeerId);
     console.log("Local phone number:", localPhoneNumber);
-
-    const systemAudio = new Audio();
-    const localAudio = new Audio();
-    remoteAudio = new Audio();
 
     phone = new Phone({
       waku: node,
