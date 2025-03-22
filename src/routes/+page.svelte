@@ -39,7 +39,7 @@
 
     const node = await Waku.get();
     localPeerId = node.peerId.toString();
-    localPhoneNumber = localStorage.getItem(Local.LOCAL_ID_KEY) || "";
+    localPhoneNumber = Local.getPhoneNumber();
     console.log("Local peer ID:", localPeerId);
     console.log("Local phone number:", localPhoneNumber);
 
@@ -57,7 +57,8 @@
     await node.start();
     await phone.start();
 
-    phone.events.addEventListener("incomingCall", handleIncomingCall);
+    phone.events.addEventListener("incomingCall", handleIncomingCall as any);
+    phone.events.addEventListener("hangup", endCall);
 
     window.addEventListener("beforeunload", async () => {
       await node.stop();
@@ -103,7 +104,6 @@
   async function hangUpCall() {
     console.log("hangUpCall function triggered");
     await phone.hangup();
-    endCall();
   }
 
   function startCall() {
@@ -123,7 +123,8 @@
     callDuration = 0;
   }
 
-  function handleIncomingCall() {
+  function handleIncomingCall(event: CustomEvent) {
+    callerPeerId = event.detail?.callerPhoneNumber || "unknown";
     incomingCall = true;
   }
 

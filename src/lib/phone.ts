@@ -3,6 +3,7 @@ import { utils } from "@waku/sdk";
 import { WakuPhoneMessageType, type Waku, type WakuPhoneMessage } from "./waku";
 import { Call, CallState, Role } from "./call";
 import { AudioSignal, SignalType } from "./audiosignal";
+import { Local } from "./local-storage";
 
 type PhoneParams = {
   waku: Waku;
@@ -95,7 +96,8 @@ export class Phone {
       callerPeerId:callerPeerId,
       calledPeerId:calledPeerId,
       recipient: calledPeerId,
-      webrtcData: offer
+      webrtcData: offer,
+      callerPhoneNumber: Local.getPhoneNumber() || "unknown",
     });
   }
 
@@ -105,12 +107,19 @@ export class Phone {
       return;
     }
 
+    this.audioSignal.stopSignal();
+
     await this.waku.sendByeMessage({
       callId: this.call.callId,
       calledPeerId: this.call.calledId,
       callerPeerId: this.call.callerId,
       recipient: this.getRecepient(this.call.calledId, this.call.callerId),
     });
+
+    this.events.dispatchEvent(new CustomEvent(
+      "hangup",
+      { detail: true }
+    ));
 
     this.call.stop();
     this.call = undefined;
@@ -239,7 +248,8 @@ export class Phone {
     this.events.dispatchEvent(new CustomEvent('incomingCall', {
       detail: {
         callerPeerId: message.callerPeerId,
-        callId: message.callId
+        callId: message.callId,
+        callerPhoneNumber: message.callerPhoneNumber,
       }
     }));
   }

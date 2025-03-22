@@ -34,7 +34,8 @@ export type WakuPhoneMessage = {
   calledPeerId?: string;
   calledDisplayName?: string;
   webrtcData?: object;
-  recipient?:string;
+  recipient?: string;
+  callerPhoneNumber?: string;
 };
 
 type AppParams = {
@@ -49,7 +50,8 @@ type WebRTCParams = {
   callerPeerId: string;
   calledPeerId: string;
   webrtcData: RTCSessionDescriptionInit | RTCIceCandidate;
-  recipient:string;
+  recipient: string;
+  callerPhoneNumber?: string;
 };
 
 type DialParams = WebRTCParams;
@@ -92,11 +94,6 @@ export class Waku {
     
     const node = await createLightNode({
       defaultBootstrap: false,
-/*       bootstrapPeers:[
-        "/dns4/waku-test.bloxy.one/tcp/8095/wss/p2p/16Uiu2HAmSZbDB7CusdRhgkD81VssRjQV5ZH13FbzCGcdnbbh6VwZ",
-        "/dns4/vps-aaa00d52.vps.ovh.ca/tcp/8000/wss/p2p/16Uiu2HAm9PftGgHZwWE3wzdMde4m3kT2eYJFXLZfGoSED3gysofk"
-      ], */
-      //numPeersToUse: 1,
       networkConfig: {
         clusterId: 42,
         shards: [0]
