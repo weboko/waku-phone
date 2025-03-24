@@ -6,6 +6,7 @@
   import { getPeerIdFromPhoneNumber } from "$lib/utils";
   import IncomingCallPopup from "./incoming-call/IncomingCallPopUp.svelte";
   import { Phone } from "$lib/phone";
+  import { base } from '$app/paths';
 
   let inputValue = "";
   let localPeerId = "";
@@ -18,6 +19,7 @@
   let calledPartyPeerId = "";
   let incomingCall = false;
   let callerPeerId = "";
+  let networkConnected = false;
 
   let localAudio: HTMLAudioElement;
   let systemAudio: HTMLAudioElement;
@@ -57,6 +59,7 @@
     remoteAudio.id = "remote-audio";
     remoteAudio.autoplay = true;
     remoteAudio.playsInline = true;
+    networkConnected = node["node"].isConnected();
     
     // Append to document body but hide them
     document.body.appendChild(systemAudio);
@@ -93,6 +96,12 @@
       console.warn(warningMessage);
       return;
     }
+    if (networkConnected === false) {
+      warningMessage = "Network is not connected";
+      console.warn(warningMessage);
+      return;
+    }
+
     warningMessage = "";
     console.log("Input value:", inputValue);
     try {
@@ -189,9 +198,16 @@
 
 <div class="phone-container">
   <div class="status-bar">
+    <div class="status-left"></div>
     <p class="phone-id">{localPhoneNumber || "No Number"}</p>
+    <div class="status-right">
+      <img 
+        src={networkConnected ? `${base}/connected.png` : `${base}/notconnected.png`} 
+        class="network-status" 
+        alt="Network status"
+      />
+    </div>
   </div>
-
   {#if callActive}
     <div class="call-screen">
       <div class="call-info">
@@ -297,14 +313,29 @@
   }
 
   .status-bar {
-    padding: 8px 16px;
+    padding: 12px 16px;
+    min-height: 24px; /* Add minimum height */
     background-color: #f8f8f8;
     border-bottom: 1px solid #eaeaea;
-    text-align: center;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+  .status-left {
+    /* Empty space to balance the layout */
   }
 
+  .status-right {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .network-status {
+      padding-top: 4px;
+      width: 16px;
+      height: 16px;
+    }
   .phone-id {
-    font-size: 14px;
+    font-size: 16px;
     color: #666;
     margin: 0;
   }
